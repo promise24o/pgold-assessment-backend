@@ -35,4 +35,9 @@ return [
         ],
     ],
 
+    'pgold' => [
+        'base_url' => env('PGOLD_API_BASE_URL', 'https://sandbox.pgoldapp.com'),
+        'cache_ttl' => env('PGOLD_CACHE_TTL', 300), // 5 minutes default
+    ],
+
 ];

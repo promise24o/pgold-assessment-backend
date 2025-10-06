@@ -1,11 +1,43 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# PGold Assessment Backend
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+A professional Laravel 12 REST API backend for a crypto and gift card trading mobile application.
+
+## Features
+
+✅ **Authentication & Onboarding**
+- User registration with validation
+- Email & password login
+- Token-based authentication (Laravel Sanctum)
+- Logout and profile retrieval
+- Email verification with 6-digit codes
+- Biometric setup (Face ID & Fingerprint)
+
+✅ **Homepage API**
+- Fetch available crypto rates
+- Fetch available gift card rates
+- Announcements and featured items
+- Dashboard data for mobile app
+
+✅ **Rate Calculator**
+- Crypto rate calculation
+- Gift card rate calculation
+- Real-time exchange value computation
+
+✅ **Professional Architecture**
+- Form Request validation
+- API Resources for responses
+- Service layer for business logic
+- Custom exception handling
+- Rate limiting
+- CORS configuration
+- API versioning (v1)
+
+## Tech Stack
+
+- **Framework:** Laravel 12
+- **Authentication:** Laravel Sanctum
+- **Database:** SQLite (easily switchable to MySQL/PostgreSQL)
+- **PHP Version:** 8.2+
 
 ## About Laravel
 
@@ -21,40 +53,185 @@ Laravel is a web application framework with expressive, elegant syntax. We belie
 
 Laravel is accessible, powerful, and provides tools required for large, robust applications.
 
-## Learning Laravel
+## Installation
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+### Prerequisites
+- PHP 8.2 or higher
+- Composer
+- SQLite (or MySQL/PostgreSQL)
 
-You may also try the [Laravel Bootcamp](https://bootcamp.laravel.com), where you will be guided through building a modern Laravel application from scratch.
+### Setup Steps
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+1. **Clone the repository**
+```bash
+git clone <repository-url>
+cd pgold-assessment-backend
+```
 
-## Laravel Sponsors
+2. **Install dependencies**
+```bash
+composer install
+```
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+3. **Environment configuration**
+```bash
+cp .env.example .env
+php artisan key:generate
+```
 
-### Premium Partners
+4. **Configure database**
+The project uses SQLite by default. The database file will be created automatically.
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+For MySQL/PostgreSQL, update `.env`:
+```env
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=pgold
+DB_USERNAME=root
+DB_PASSWORD=
+```
 
-## Contributing
+5. **Run migrations and seed database**
+```bash
+php artisan migrate:fresh --seed
+```
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+This will create all tables and seed sample crypto/gift card rates.
 
-## Code of Conduct
+6. **Start the development server**
+```bash
+php artisan serve
+```
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+The API will be available at `http://localhost:8000`
 
-## Security Vulnerabilities
+## API Documentation
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+See [API_DOCUMENTATION.md](./API_DOCUMENTATION.md) for complete API reference.
+
+### Quick Test
+
+**Register a user:**
+```bash
+curl -X POST http://localhost:8000/api/v1/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "testuser",
+    "email": "test@example.com",
+    "full_name": "Test User",
+    "password": "Password123",
+    "password_confirmation": "Password123"
+  }'
+```
+
+**Login:**
+```bash
+curl -X POST http://localhost:8000/api/v1/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "test@example.com",
+    "password": "Password123"
+  }'
+```
+
+## Project Structure
+
+```
+app/
+├── Http/
+│   ├── Controllers/
+│   │   └── Api/V1/          # API v1 controllers
+│   ├── Requests/            # Form request validation
+│   ├── Resources/           # API response resources
+│   └── Middleware/          # Custom middleware
+├── Models/                  # Eloquent models
+├── Services/                # Business logic layer
+└── Exceptions/              # Exception handling
+
+database/
+├── migrations/              # Database migrations
+└── seeders/                 # Database seeders
+
+routes/
+└── api.php                  # API routes
+```
+
+## Key Features Implementation
+
+### Authentication Flow
+1. User registers → Email verification code sent
+2. User verifies email with 6-digit code
+3. User receives authentication token
+4. User can setup biometrics (Face ID/Fingerprint)
+5. User can login and access protected endpoints
+
+### Rate Calculation
+- Real-time calculation based on current rates
+- Supports both crypto and gift cards
+- Returns exchange value in NGN
+
+### Security
+- Password hashing (bcrypt)
+- Token-based authentication (Sanctum)
+- Rate limiting (60 req/min authenticated, 30 req/min guest)
+- CORS enabled
+- Input validation on all endpoints
+- Email verification before full access
+
+## Available Endpoints
+
+### Public Endpoints
+- `POST /api/v1/register` - Register user
+- `POST /api/v1/login` - Login user
+- `POST /api/v1/verify-email` - Send verification code
+- `POST /api/v1/confirm-email` - Verify email
+- `GET /api/v1/rates/*` - Get rates
+
+### Protected Endpoints (Require Authentication)
+- `POST /api/v1/logout` - Logout
+- `GET /api/v1/profile` - Get profile
+- `POST /api/v1/enable-face-id` - Enable Face ID
+- `POST /api/v1/enable-fingerprint` - Enable Fingerprint
+- `GET /api/v1/home` - Get homepage data
+- `POST /api/v1/calculate/*` - Calculate rates
+
+## Testing
+
+Run tests:
+```bash
+php artisan test
+```
+
+## Deployment
+
+For production deployment:
+
+1. Set `APP_ENV=production` in `.env`
+2. Set `APP_DEBUG=false`
+3. Configure proper database credentials
+4. Setup email service (Mailgun, SES, etc.)
+5. Configure CORS for your frontend domain
+6. Enable HTTPS
+7. Setup queue workers for background jobs
+
+## Email Configuration
+
+By default, verification codes are logged. To send actual emails:
+
+1. Configure mail settings in `.env`:
+```env
+MAIL_MAILER=smtp
+MAIL_HOST=smtp.mailtrap.io
+MAIL_PORT=2525
+MAIL_USERNAME=your_username
+MAIL_PASSWORD=your_password
+MAIL_ENCRYPTION=tls
+MAIL_FROM_ADDRESS=noreply@pgold.com
+MAIL_FROM_NAME="PGold"
+```
+
+2. Uncomment email sending in `EmailVerificationService.php`
 
 ## License
 
