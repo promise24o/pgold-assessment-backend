@@ -1,0 +1,34 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: pgold-backend
+    ports:
+      - "8080:8080"
+    environment:
+      - APP_NAME=PGold
+      - APP_ENV=local
+      - APP_DEBUG=true
+      - APP_URL=http://localhost:8080
+      - LOG_CHANNEL=stack
+      - LOG_LEVEL=debug
+      - DB_CONNECTION=sqlite
+      - CACHE_STORE=file
+      - SESSION_DRIVER=file
+      - QUEUE_CONNECTION=sync
+      - MAIL_MAILER=log
+      - PGOLD_API_BASE_URL=https://sandbox.pgoldapp.com
+      - PGOLD_CACHE_TTL=300
+    volumes:
+      - ./storage:/var/www/html/storage
+      - ./database:/var/www/html/database
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/up"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
