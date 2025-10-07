@@ -20,17 +20,32 @@ class RateController extends Controller
     {
         $request->validate([
             'code' => ['required', 'string'],
-            'amount' => ['required', 'numeric', 'min:0.00000001'],
+            'action' => ['required', 'string', 'in:buy,sell,swap'],
+            'amount' => ['nullable', 'numeric', 'min:0.00000001'],
+            'usd_value' => ['nullable', 'numeric', 'min:0.01'],
         ]);
+
+        // Ensure at least one of amount or usd_value is provided
+        if (!$request->amount && !$request->usd_value) {
+            return response()->json([
+                'message' => 'Validation failed',
+                'errors' => [
+                    'amount' => ['Either amount or usd_value must be provided.']
+                ]
+            ], 422);
+        }
 
         $result = $this->rateService->calculateCrypto(
             $request->code,
-            $request->amount
+            $request->action,
+            $request->amount,
+            $request->usd_value
         );
 
         return response()->json([
             'message' => 'Crypto rate calculated successfully',
-            'calculation' => $result,
+            'estimated_rate' => true,
+            'data' => $result,
         ]);
     }
 
@@ -44,6 +59,7 @@ class RateController extends Controller
             'country_id' => ['required', 'integer'],
             'range_id' => ['required', 'integer'],
             'category_id' => ['required', 'integer'],
+            'action' => ['required', 'string', 'in:sell,buy,trade'],
             'amount' => ['required', 'numeric', 'min:0.01'],
         ]);
 
@@ -52,12 +68,14 @@ class RateController extends Controller
             $request->country_id,
             $request->range_id,
             $request->category_id,
+            $request->action,
             $request->amount
         );
 
         return response()->json([
             'message' => 'Gift card rate calculated successfully',
-            'calculation' => $result,
+            'estimated_rate' => true,
+            'data' => $result,
         ]);
     }
 

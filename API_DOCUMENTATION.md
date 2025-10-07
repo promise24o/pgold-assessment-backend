@@ -436,21 +436,39 @@ Get all active rates (crypto + gift cards).
 
 🔒 **Requires Authentication**
 
-Calculate exchange value for cryptocurrency using live rates from PGold API.
+Calculate exchange value for cryptocurrency using live rates from PGold API with action-based pricing.
 
-**Request Body:**
+**Request Body (Option 1 - Crypto Amount):**
 ```json
 {
   "code": "BTC",
+  "action": "buy",
   "amount": 0.5
 }
 ```
+
+**Request Body (Option 2 - USD Value):**
+```json
+{
+  "code": "USDT",
+  "action": "sell",
+  "usd_value": 500
+}
+```
+
+**Parameters:**
+- `code` (required) - Cryptocurrency code (e.g., BTC, ETH, USDT)
+- `action` (required) - Transaction type: `buy`, `sell`, or `swap`
+- `amount` (optional) - Crypto amount (provide this OR usd_value)
+- `usd_value` (optional) - USD value (provide this OR amount)
 
 **Response (200):**
 ```json
 {
   "message": "Crypto rate calculated successfully",
-  "calculation": {
+  "estimated_rate": true,
+  "data": {
+    "action": "buy",
     "asset": {
       "id": 9,
       "code": "BTC",
@@ -458,31 +476,26 @@ Calculate exchange value for cryptocurrency using live rates from PGold API.
       "type": "crypto",
       "icon": "https://res.cloudinary.com/dcgqnouof/image/upload/v1736485543/BTC_jhqdbu.png"
     },
-    "amount": 0.5,
-    "usd_rate": 108908.0,
+    "crypto_amount": 0.5,
+    "usd_value": 54454.0,
+    "rate": "₦1,620.00",
     "buy_rate": 1620.0,
     "sell_rate": 1580.0,
+    "applied_rate": 1620.0,
+    "total_value": "NGN 88,215,480.00",
+    "exchange_value_ngn": 88215480.0,
     "currency": "NGN",
-    "exchange_value": 88255480.0,
-    "networks": [
-      {
-        "id": 23,
-        "name": "Bitcoin",
-        "code": "BTC",
-        "fee": "0.0003000000",
-        "minimum": "0.0005000000"
-      }
-    ],
+    "networks": [...],
+    "disclaimer": "This is an estimated rate. Actual rate may differ",
     "calculated_at": "2025-10-07T00:00:00.000000Z"
   }
 }
 ```
 
-**Calculation Formula:**
-```
-NGN Value = amount × usd_rate × buy_rate
-Example: 0.5 × 108908 × 1620 = 88,255,480 NGN
-```
+**Action-Based Rates:**
+- `buy` - Uses buy_rate from API
+- `sell` - Uses sell_rate from API
+- `swap` - Uses average of buy and sell rates
 
 ---
 
@@ -491,7 +504,7 @@ Example: 0.5 × 108908 × 1620 = 88,255,480 NGN
 
 🔒 **Requires Authentication**
 
-Calculate exchange value for gift cards using live rates from PGold API.
+Calculate exchange value for gift cards using live rates from PGold API with action-based pricing.
 
 **Request Body:**
 ```json
@@ -500,22 +513,26 @@ Calculate exchange value for gift cards using live rates from PGold API.
   "country_id": 2,
   "range_id": 4,
   "category_id": 4,
+  "action": "sell",
   "amount": 75
 }
 ```
 
 **Parameters:**
-- `gift_card_id` - ID of the gift card (e.g., 1 for Amazon)
-- `country_id` - ID of the country (e.g., 2 for United States)
-- `range_id` - ID of the amount range (e.g., 4 for $50-$99)
-- `category_id` - ID of the receipt category (e.g., 4 for Cash Receipt)
-- `amount` - Amount in the gift card's currency
+- `gift_card_id` (required) - ID of the gift card (e.g., 1 for Amazon)
+- `country_id` (required) - ID of the country (e.g., 2 for United States)
+- `range_id` (required) - ID of the amount range (e.g., 4 for $50-$99)
+- `category_id` (required) - ID of the receipt category (e.g., 4 for Cash Receipt)
+- `action` (required) - Transaction type: `sell`, `buy`, or `trade`
+- `amount` (required) - Amount in the gift card's currency
 
 **Response (200):**
 ```json
 {
   "message": "Gift card rate calculated successfully",
-  "calculation": {
+  "estimated_rate": true,
+  "data": {
+    "action": "sell",
     "gift_card": {
       "id": 1,
       "title": "AMAZON",
@@ -540,21 +557,24 @@ Calculate exchange value for gift cards using live rates from PGold API.
     "category": {
       "id": 4,
       "title": "CASH RECEIPT",
-      "rate_per_unit": 900.0
+      "base_rate": 900.0,
+      "applied_rate": 900.0
     },
-    "amount": 75,
-    "currency": "USD",
+    "card_amount": 75,
+    "card_currency": "USD",
+    "rate": "₦900.00",
+    "total_value": "NGN 67,500.00",
     "exchange_value_ngn": 67500.0,
+    "disclaimer": "This is an estimated rate. Actual rate may differ",
     "calculated_at": "2025-10-07T00:00:00.000000Z"
   }
 }
 ```
 
-**Calculation Formula:**
-```
-NGN Value = amount × rate_per_unit
-Example: 75 × 900 = 67,500 NGN
-```
+**Action-Based Rates:**
+- `sell` - Standard rate (100%)
+- `buy` - 5% markup (105% of base rate)
+- `trade` - 2% discount (98% of base rate)
 
 **How to Get IDs:**
 1. First, call `GET /api/v1/rates/gift-cards` to see all gift cards

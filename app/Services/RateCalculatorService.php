@@ -81,7 +81,7 @@ class RateCalculatorService
     /**
      * Calculate crypto rate
      */
-    public function calculateCrypto(string $code, float $amount): array
+    public function calculateCrypto(string $code, string $action, ?float $amount = null, ?float $usdValue = null): array
     {
         $cryptos = $this->getCryptoRates();
         
@@ -93,14 +93,31 @@ class RateCalculatorService
             ]);
         }
 
-        // Use buy_rate for calculation (NGN per USD)
         $buyRate = (float) ($crypto['buy_rate'] ?? 0);
+        $sellRate = (float) ($crypto['sell_rate'] ?? 0);
         $usdRate = (float) ($crypto['usd_rate'] ?? 0);
         
-        // Calculate NGN value: amount * usd_rate * buy_rate
-        $ngnValue = $amount * $usdRate * $buyRate;
+        // Determine the rate based on action
+        $appliedRate = match($action) {
+            'buy' => $buyRate,
+            'sell' => $sellRate,
+            'swap' => ($buyRate + $sellRate) / 2, // Average for swap
+            default => $buyRate,
+        };
+
+        // Calculate crypto amount and NGN value
+        if ($usdValue) {
+            // User provided USD value, calculate crypto amount
+            $cryptoAmount = $usdRate > 0 ? $usdValue / $usdRate : 0;
+            $ngnValue = $usdValue * $appliedRate;
+        } else {
+            // User provided crypto amount
+            $cryptoAmount = $amount;
+            $ngnValue = $cryptoAmount * $usdRate * $appliedRate;
+        }
 
         return [
+            'action' => $action,
             'asset' => [
                 'id' => $crypto['id'],
                 'code' => $crypto['code'],
@@ -108,13 +125,17 @@ class RateCalculatorService
                 'type' => 'crypto',
                 'icon' => $crypto['icon'] ?? null,
             ],
-            'amount' => $amount,
-            'usd_rate' => $usdRate,
+            'crypto_amount' => round($cryptoAmount, 8),
+            'usd_value' => $usdValue ?? round($cryptoAmount * $usdRate, 2),
+            'rate' => '₦' . number_format($appliedRate, 2),
             'buy_rate' => $buyRate,
-            'sell_rate' => (float) ($crypto['sell_rate'] ?? 0),
+            'sell_rate' => $sellRate,
+            'applied_rate' => $appliedRate,
+            'total_value' => 'NGN ' . number_format(round($ngnValue, 2), 2),
+            'exchange_value_ngn' => round($ngnValue, 2),
             'currency' => 'NGN',
-            'exchange_value' => round($ngnValue, 2),
             'networks' => $crypto['networks'] ?? [],
+            'disclaimer' => 'This is an estimated rate. Actual rate may differ',
             'calculated_at' => now()->toISOString(),
         ];
     }
@@ -122,7 +143,7 @@ class RateCalculatorService
     /**
      * Calculate gift card rate
      */
-    public function calculateGiftCard(string $giftCardId, string $countryId, string $rangeId, string $categoryId, float $amount): array
+    public function calculateGiftCard(string $giftCardId, string $countryId, string $rangeId, string $categoryId, string $action, float $amount): array
     {
         $giftCards = $this->getGiftCardRates();
         
@@ -168,11 +189,22 @@ class RateCalculatorService
             ]);
         }
 
+        // Base rate from category
+        $baseRate = (float) $category['amount'];
+        
+        // Apply action-based adjustments
+        $appliedRate = match($action) {
+            'sell' => $baseRate,                    // Standard rate for selling
+            'buy' => $baseRate * 1.05,              // 5% markup for buying
+            'trade' => $baseRate * 0.98,            // 2% discount for trading
+            default => $baseRate,
+        };
+
         // Calculate NGN value
-        $ratePerUnit = (float) $category['amount'];
-        $ngnValue = $amount * $ratePerUnit;
+        $ngnValue = $amount * $appliedRate;
 
         return [
+            'action' => $action,
             'gift_card' => [
                 'id' => $giftCard['id'],
                 'title' => $giftCard['title'],
@@ -192,11 +224,15 @@ class RateCalculatorService
             'category' => [
                 'id' => $category['id'],
                 'title' => $category['title'],
-                'rate_per_unit' => $ratePerUnit,
+                'base_rate' => $baseRate,
+                'applied_rate' => $appliedRate,
             ],
-            'amount' => $amount,
-            'currency' => $country['currency']['code'],
+            'card_amount' => $amount,
+            'card_currency' => $country['currency']['code'],
+            'rate' => '₦' . number_format($appliedRate, 2),
+            'total_value' => 'NGN ' . number_format(round($ngnValue, 2), 2),
             'exchange_value_ngn' => round($ngnValue, 2),
+            'disclaimer' => 'This is an estimated rate. Actual rate may differ',
             'calculated_at' => now()->toISOString(),
         ];
     }
