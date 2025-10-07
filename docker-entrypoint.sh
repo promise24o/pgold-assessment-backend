@@ -5,8 +5,11 @@ set -e
 
 echo "🚀 Starting PGold Backend..."
 
-# Wait for database to be ready (if using external DB)
-# sleep 2
+# Create .env file from .env.example if it doesn't exist
+if [ ! -f .env ]; then
+    echo "📝 Creating .env file..."
+    cp .env.example .env
+fi
 
 # Create storage directories if they don't exist
 mkdir -p storage/framework/{sessions,views,cache}
@@ -26,7 +29,7 @@ if [ ! -f database/database.sqlite ]; then
 fi
 
 # Generate app key if not set
-if [ -z "$APP_KEY" ]; then
+if [ -z "$APP_KEY" ] || ! grep -q "APP_KEY=base64:" .env; then
     echo "🔑 Generating application key..."
     php artisan key:generate --force
 fi
