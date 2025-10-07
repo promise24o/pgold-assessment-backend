@@ -1,0 +1,932 @@
+openapi: 3.0.3
+info:
+  title: PGold Assessment Backend API
+  description: |
+    RESTful API for PGold crypto and gift card trading platform.
+    
+    ## Features
+    - User authentication with Laravel Sanctum
+    - Email verification with 6-digit codes
+    - Biometric setup (Face ID & Fingerprint)
+    - Real-time crypto and gift card rates from PGold Sandbox API
+    - Action-based rate calculations (buy/sell/swap/trade)
+    - 5-minute caching for optimal performance
+    
+    ## External API Integration
+    - **Crypto Rates:** https://sandbox.pgoldapp.com/api/guest/cryptocurrencies
+    - **Gift Card Rates:** https://sandbox.pgoldapp.com/api/guest/giftcards
+    
+    ## Authentication
+    Most endpoints require Bearer token authentication. Include the token in the Authorization header:
+    ```
+    Authorization: Bearer {your_token}
+    ```
+  version: 1.0.0
+  contact:
+    name: PGold API Support
+    email: support@pgoldapp.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:8000/api/v1
+    description: Local development server
+  - url: https://api.pgoldapp.com/v1
+    description: Production server
+
+tags:
+  - name: Authentication
+    description: User registration, login, logout, and profile management
+  - name: Email Verification
+    description: Email verification with 6-digit codes
+  - name: Biometric Setup
+    description: Face ID and Fingerprint setup
+  - name: Homepage
+    description: Dashboard data for mobile app
+  - name: Rates
+    description: Cryptocurrency and gift card rates
+  - name: Calculations
+    description: Rate calculations for crypto and gift cards
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Enter your Bearer token in the format **Bearer &lt;token&gt;**
+
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        username:
+          type: string
+          example: johndoe
+        email:
+          type: string
+          format: email
+          example: john@example.com
+        full_name:
+          type: string
+          example: John Doe
+        phone_number:
+          type: string
+          nullable: true
+          example: "08012345678"
+        referral_code:
+          type: string
+          nullable: true
+          example: REF123
+        heard_from:
+          type: string
+          nullable: true
+          example: Facebook
+        email_verified:
+          type: boolean
+          example: false
+        email_verified_at:
+          type: string
+          format: date-time
+          nullable: true
+        face_id_enabled:
+          type: boolean
+          example: false
+        fingerprint_enabled:
+          type: boolean
+          example: false
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    Error:
+      type: object
+      properties:
+        message:
+          type: string
+          example: Validation failed
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+
+    ValidationError:
+      type: object
+      properties:
+        message:
+          type: string
+          example: Validation failed
+        errors:
+          type: object
+          example:
+            email: ["The email field is required."]
+            password: ["The password field is required."]
+
+paths:
+  /register:
+    post:
+      tags:
+        - Authentication
+      summary: Register a new user
+      description: Create a new user account with email verification
+      operationId: register
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - username
+                - email
+                - full_name
+                - password
+                - password_confirmation
+              properties:
+                username:
+                  type: string
+                  example: johndoe
+                  description: Alphanumeric with dashes and underscores only
+                email:
+                  type: string
+                  format: email
+                  example: john@example.com
+                full_name:
+                  type: string
+                  example: John Doe
+                phone_number:
+                  type: string
+                  nullable: true
+                  example: "08012345678"
+                referral_code:
+                  type: string
+                  nullable: true
+                  example: REF123
+                heard_from:
+                  type: string
+                  nullable: true
+                  example: Facebook
+                password:
+                  type: string
+                  format: password
+                  example: Password123
+                  description: Min 8 chars, mixed case, numbers
+                password_confirmation:
+                  type: string
+                  format: password
+                  example: Password123
+      responses:
+        '201':
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: User registered successfully. Please verify your email.
+                  user:
+                    $ref: '#/components/schemas/User'
+                  verification_code:
+                    type: string
+                    nullable: true
+                    example: "123456"
+                    description: Only returned in debug mode
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+
+  /login:
+    post:
+      tags:
+        - Authentication
+      summary: Login user
+      description: Authenticate user and receive access token
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: john@example.com
+                password:
+                  type: string
+                  format: password
+                  example: Password123
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Login successful
+                  user:
+                    $ref: '#/components/schemas/User'
+                  token:
+                    type: string
+                    example: 1|abcdef123456...
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Invalid credentials
+
+  /logout:
+    post:
+      tags:
+        - Authentication
+      summary: Logout user
+      description: Revoke all user tokens
+      operationId: logout
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Logout successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Logged out successfully
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Unauthenticated
+
+  /profile:
+    get:
+      tags:
+        - Authentication
+      summary: Get user profile
+      description: Retrieve authenticated user's profile
+      operationId: getProfile
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Profile retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Profile retrieved successfully
+                  user:
+                    $ref: '#/components/schemas/User'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Unauthenticated
+
+  /verify-email:
+    post:
+      tags:
+        - Email Verification
+      summary: Send verification code
+      description: Send a 6-digit verification code to user's email
+      operationId: sendVerificationCode
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: john@example.com
+      responses:
+        '200':
+          description: Verification code sent
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Verification code sent to your email
+                  code:
+                    type: string
+                    nullable: true
+                    example: "123456"
+                    description: Only returned in debug mode
+
+  /confirm-email:
+    post:
+      tags:
+        - Email Verification
+      summary: Confirm email with code
+      description: Verify email using 6-digit code
+      operationId: confirmEmail
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - code
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: john@example.com
+                code:
+                  type: string
+                  example: "123456"
+      responses:
+        '200':
+          description: Email verified successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Email verified successfully
+        '400':
+          description: Invalid or expired code
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Invalid or expired verification code
+
+  /resend-verification:
+    post:
+      tags:
+        - Email Verification
+      summary: Resend verification code
+      description: Resend verification code to user's email
+      operationId: resendVerificationCode
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: john@example.com
+      responses:
+        '200':
+          description: Verification code resent
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Verification code resent to your email
+
+  /enable-face-id:
+    post:
+      tags:
+        - Biometric Setup
+      summary: Enable Face ID
+      description: Enable or disable Face ID for user
+      operationId: enableFaceId
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - enabled
+              properties:
+                enabled:
+                  type: boolean
+                  example: true
+      responses:
+        '200':
+          description: Face ID updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Face ID enabled successfully
+                  user:
+                    $ref: '#/components/schemas/User'
+
+  /enable-fingerprint:
+    post:
+      tags:
+        - Biometric Setup
+      summary: Enable Fingerprint
+      description: Enable or disable Fingerprint for user
+      operationId: enableFingerprint
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - enabled
+              properties:
+                enabled:
+                  type: boolean
+                  example: true
+      responses:
+        '200':
+          description: Fingerprint updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Fingerprint enabled successfully
+                  user:
+                    $ref: '#/components/schemas/User'
+
+  /setup-biometrics:
+    post:
+      tags:
+        - Biometric Setup
+      summary: Setup both biometrics
+      description: Enable or disable both Face ID and Fingerprint
+      operationId: setupBiometrics
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - face_id_enabled
+                - fingerprint_enabled
+              properties:
+                face_id_enabled:
+                  type: boolean
+                  example: true
+                fingerprint_enabled:
+                  type: boolean
+                  example: true
+      responses:
+        '200':
+          description: Biometrics setup successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Biometric settings updated successfully
+                  user:
+                    $ref: '#/components/schemas/User'
+
+  /home:
+    get:
+      tags:
+        - Homepage
+      summary: Get homepage data
+      description: Retrieve dashboard data including rates, announcements, and stats
+      operationId: getHomepage
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Homepage data retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Homepage data retrieved successfully
+                  data:
+                    type: object
+                    properties:
+                      cryptocurrencies:
+                        type: array
+                        items:
+                          type: object
+                      gift_cards:
+                        type: array
+                        items:
+                          type: object
+                      announcements:
+                        type: array
+                        items:
+                          type: object
+                      featured:
+                        type: object
+                      stats:
+                        type: object
+
+  /rates/crypto:
+    get:
+      tags:
+        - Rates
+      summary: Get all crypto rates
+      description: Retrieve all cryptocurrency rates from PGold API (cached for 5 minutes)
+      operationId: getCryptoRates
+      responses:
+        '200':
+          description: Crypto rates retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Crypto rates retrieved successfully
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                        name:
+                          type: string
+                        code:
+                          type: string
+                        icon:
+                          type: string
+                        buy_rate:
+                          type: number
+                        sell_rate:
+                          type: number
+                        usd_rate:
+                          type: number
+                        is_stable:
+                          type: integer
+                        networks:
+                          type: array
+                          items:
+                            type: object
+
+  /rates/gift-cards:
+    get:
+      tags:
+        - Rates
+      summary: Get all gift card rates
+      description: Retrieve all gift card rates from PGold API (cached for 5 minutes)
+      operationId: getGiftCardRates
+      responses:
+        '200':
+          description: Gift card rates retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Gift card rates retrieved successfully
+                  all_giftcards:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                        title:
+                          type: string
+                        image:
+                          type: string
+                        countries:
+                          type: array
+                          items:
+                            type: object
+
+  /rates:
+    get:
+      tags:
+        - Rates
+      summary: Get all rates
+      description: Retrieve both crypto and gift card rates
+      operationId: getAllRates
+      responses:
+        '200':
+          description: All rates retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: All rates retrieved successfully
+                  data:
+                    type: object
+                    properties:
+                      cryptocurrencies:
+                        type: array
+                        items:
+                          type: object
+                      gift_cards:
+                        type: array
+                        items:
+                          type: object
+
+  /calculate/crypto:
+    post:
+      tags:
+        - Calculations
+      summary: Calculate crypto rate
+      description: |
+        Calculate exchange value for cryptocurrency with action-based pricing.
+        Provide either `amount` (crypto amount) OR `usd_value` (USD value).
+      operationId: calculateCrypto
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - code
+                - action
+              properties:
+                code:
+                  type: string
+                  example: BTC
+                  description: Cryptocurrency code (BTC, ETH, USDT, etc.)
+                action:
+                  type: string
+                  enum: [buy, sell, swap]
+                  example: buy
+                  description: Transaction type
+                amount:
+                  type: number
+                  format: float
+                  example: 0.5
+                  description: Crypto amount (provide this OR usd_value)
+                usd_value:
+                  type: number
+                  format: float
+                  example: 500
+                  description: USD value (provide this OR amount)
+      responses:
+        '200':
+          description: Crypto rate calculated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Crypto rate calculated successfully
+                  estimated_rate:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      action:
+                        type: string
+                        example: buy
+                      asset:
+                        type: object
+                        properties:
+                          id:
+                            type: integer
+                          code:
+                            type: string
+                          name:
+                            type: string
+                          type:
+                            type: string
+                          icon:
+                            type: string
+                      crypto_amount:
+                        type: number
+                      usd_value:
+                        type: number
+                      rate:
+                        type: string
+                        example: "₦1,620.00"
+                      buy_rate:
+                        type: number
+                      sell_rate:
+                        type: number
+                      applied_rate:
+                        type: number
+                      total_value:
+                        type: string
+                        example: "NGN 88,215,480.00"
+                      exchange_value_ngn:
+                        type: number
+                      currency:
+                        type: string
+                      networks:
+                        type: array
+                        items:
+                          type: object
+                      disclaimer:
+                        type: string
+                        example: This is an estimated rate. Actual rate may differ
+                      calculated_at:
+                        type: string
+                        format: date-time
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+
+  /calculate/gift-card:
+    post:
+      tags:
+        - Calculations
+      summary: Calculate gift card rate
+      description: |
+        Calculate exchange value for gift cards with action-based pricing.
+        
+        **Action-Based Rates:**
+        - `sell` - Standard rate (100%)
+        - `buy` - 5% markup (105% of base rate)
+        - `trade` - 2% discount (98% of base rate)
+      operationId: calculateGiftCard
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - gift_card_id
+                - country_id
+                - range_id
+                - category_id
+                - action
+                - amount
+              properties:
+                gift_card_id:
+                  type: integer
+                  example: 1
+                  description: ID of the gift card
+                country_id:
+                  type: integer
+                  example: 2
+                  description: ID of the country
+                range_id:
+                  type: integer
+                  example: 4
+                  description: ID of the amount range
+                category_id:
+                  type: integer
+                  example: 4
+                  description: ID of the receipt category
+                action:
+                  type: string
+                  enum: [sell, buy, trade]
+                  example: sell
+                  description: Transaction type
+                amount:
+                  type: number
+                  format: float
+                  example: 100
+                  description: Amount in gift card currency
+      responses:
+        '200':
+          description: Gift card rate calculated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Gift card rate calculated successfully
+                  estimated_rate:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      action:
+                        type: string
+                        example: sell
+                      gift_card:
+                        type: object
+                        properties:
+                          id:
+                            type: integer
+                          title:
+                            type: string
+                          image:
+                            type: string
+                      country:
+                        type: object
+                      range:
+                        type: object
+                      category:
+                        type: object
+                        properties:
+                          id:
+                            type: integer
+                          title:
+                            type: string
+                          base_rate:
+                            type: number
+                          applied_rate:
+                            type: number
+                      card_amount:
+                        type: number
+                      card_currency:
+                        type: string
+                      rate:
+                        type: string
+                        example: "₦900.00"
+                      total_value:
+                        type: string
+                        example: "NGN 90,000.00"
+                      exchange_value_ngn:
+                        type: number
+                      disclaimer:
+                        type: string
+                        example: This is an estimated rate. Actual rate may differ
+                      calculated_at:
+                        type: string
+                        format: date-time
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
