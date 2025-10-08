@@ -34,21 +34,20 @@ if [ -z "$APP_KEY" ] || ! grep -q "APP_KEY=base64:" .env; then
     php artisan key:generate --force
 fi
 
-# Clear any existing cache first
+# Clear any existing cache
 echo "🧹 Clearing cache..."
 php artisan config:clear
-php artisan route:clear
+php artisan route:clear  
 php artisan view:clear
+php artisan cache:clear
 
 # Run migrations
 echo "🗄️  Running database migrations..."
 php artisan migrate --force
 
-# Cache configuration (after everything is loaded)
-echo "⚡ Optimizing application..."
-php artisan config:cache
-php artisan route:cache
-php artisan view:cache
+# Don't cache in development/container startup
+# Caching will be done by the application when needed
+echo "⚡ Application optimized (cache disabled for flexibility)"
 
 echo "✅ Application ready!"
 

@@ -34,8 +34,9 @@ COPY docker/default.conf /etc/nginx/http.d/default.conf
 # Copy supervisor configuration
 COPY docker/supervisord.conf /etc/supervisord.conf
 
-# Set permissions
-RUN chown -R www-data:www-data /var/www/html \
+# Clear bootstrap cache and set permissions
+RUN rm -rf /var/www/html/bootstrap/cache/* \
+    && chown -R www-data:www-data /var/www/html \
     && chmod -R 755 /var/www/html/storage \
     && chmod -R 755 /var/www/html/bootstrap/cache
 
