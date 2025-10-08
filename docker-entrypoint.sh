@@ -34,16 +34,16 @@ if [ -z "$APP_KEY" ] || ! grep -q "APP_KEY=base64:" .env; then
     php artisan key:generate --force
 fi
 
-# Clear any existing cache
+# Run migrations first (before clearing cache)
+echo "🗄️  Running database migrations..."
+php artisan migrate --force
+
+# Clear any existing cache (after migrations so cache table exists)
 echo "🧹 Clearing cache..."
 php artisan config:clear
 php artisan route:clear  
 php artisan view:clear
-php artisan cache:clear
-
-# Run migrations
-echo "🗄️  Running database migrations..."
-php artisan migrate --force
+php artisan cache:clear 2>/dev/null || true
 
 # Don't cache in development/container startup
 # Caching will be done by the application when needed
